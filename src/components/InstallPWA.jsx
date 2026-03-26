@@ -47,16 +47,20 @@ const InstallPWA = () => {
         }
     };
 
-    // Only show the button if it's not installed and is installable
-    if (isInstalled || !isInstallable) return null;
+    // Hide if already installed
+    if (isInstalled) return null;
 
     return (
         <button
             onClick={handleInstallClick}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl transition-all duration-300 font-black border bg-gym-neon text-black border-gym-neon animate-pulse-slow shadow-[0_0_20px_rgba(57,255,20,0.3)] hover:scale-[1.02] active:scale-95 text-xs uppercase"
+            className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl transition-all duration-300 font-black border transition-all ${
+                isInstallable 
+                ? 'bg-gym-neon text-black border-gym-neon animate-pulse-slow shadow-[0_0_20px_rgba(57,255,20,0.3)] hover:scale-[1.02]' 
+                : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'
+            } active:scale-95 text-xs uppercase`}
         >
             <Monitor size={18} />
-            <span>Install Desktop App</span>
+            <span>{isInstallable ? 'Install Desktop App' : 'Get Desktop App'}</span>
         </button>
     );
 };
