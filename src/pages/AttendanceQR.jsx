@@ -161,30 +161,31 @@ const AttendanceQR = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                 <div>
-                    <h2 className="text-3xl font-bold text-white">Attendance & Cards</h2>
-                    <p className="text-gray-400 mt-1">Scan for attendance or issue member cards</p>
+                    <h2 className="text-2xl md:text-3xl font-bold text-white uppercase tracking-tight">Attendance & Cards</h2>
+                    <p className="text-gray-400 mt-1 text-sm md:text-base">Scan attendance or issue member cards</p>
                 </div>
-                <div className="flex bg-black/60 backdrop-blur-md border border-white/10 p-1 rounded-xl shadow-lg">
+                <div className="flex w-full lg:w-auto bg-black/60 backdrop-blur-md border border-white/10 p-1 rounded-xl shadow-lg">
                     <button
                         onClick={() => setActiveTab('scan')}
-                        className={`px-6 py-2 rounded-lg flex items-center gap-2 transition-all ${activeTab === 'scan' ? 'bg-gym-neon text-black font-bold shadow-[0_0_10px_rgba(57,255,20,0.4)]' : 'text-gray-300 hover:text-white hover:bg-white/10'
+                        className={`flex-1 lg:flex-none px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'scan' ? 'bg-gym-neon text-black font-bold shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         <Camera size={20} />
-                        Scan
+                        <span className="text-sm">Scan</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('card')}
-                        className={`px-6 py-2 rounded-lg flex items-center gap-2 transition-all ${activeTab === 'card' ? 'bg-gym-neon text-black font-bold shadow-[0_0_10px_rgba(57,255,20,0.4)]' : 'text-gray-300 hover:text-white hover:bg-white/10'
+                        className={`flex-1 lg:flex-none px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'card' ? 'bg-gym-neon text-black font-bold shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         <Users size={20} />
-                        Cards
+                        <span className="text-sm">Cards</span>
                     </button>
                 </div>
             </div>
+
 
             {activeTab === 'scan' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -335,13 +336,14 @@ const AttendanceQR = () => {
                     </div>
 
                     {/* Card Preview */}
-                    <div className="lg:col-span-2 flex items-center justify-center bg-black/20 rounded-2xl p-8 border border-white/5">
+                    <div className="lg:col-span-2 flex items-center justify-center bg-black/20 rounded-2xl p-4 md:p-8 border border-white/5 overflow-hidden min-h-[400px]">
                         {selectedMember ? (
-                            <div className="print-area">
+                            <div className="print-area card-scale-container">
                                 <div
                                     ref={cardRef}
-                                    className="w-[600px] h-[350px] bg-[#1a1a1a] rounded-3xl border-4 border-[#39ff14] relative overflow-hidden flex shadow-2xl"
+                                    className="w-[600px] h-[350px] bg-[#1a1a1a] rounded-3xl border-4 border-[#39ff14] relative overflow-hidden flex shadow-2xl flex-shrink-0"
                                 >
+
                                     {/* Left Side: Image/Bodybuilder Placeholder */}
                                     <div className="w-[45%] h-full relative overflow-hidden">
                                         <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-[#1a1a1a] z-10"></div>
@@ -405,9 +407,22 @@ const AttendanceQR = () => {
                 </div>
             )}
 
-            {/* Print Styles */}
             <style>
                 {`
+                    .card-scale-container {
+                        transform-origin: center;
+                        transition: transform 0.3s ease;
+                    }
+                    @media (max-width: 650px) {
+                        .card-scale-container {
+                           transform: scale(0.6);
+                        }
+                    }
+                    @media (max-width: 450px) {
+                        .card-scale-container {
+                           transform: scale(0.45);
+                        }
+                    }
                     @media print {
                         body * {
                             visibility: hidden;
@@ -429,6 +444,7 @@ const AttendanceQR = () => {
                     }
                 `}
             </style>
+
         </div>
     );
 };

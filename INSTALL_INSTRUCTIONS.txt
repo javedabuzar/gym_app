@@ -1,0 +1,10 @@
+GYM APP - INSTALLATION INSTRUCTIONS
+----------------------------------
+
+1. Transfer 'GymApp.apk' to your Android phone.
+2. Open the file on your phone.
+3. If asked, 'Allow installation from unknown sources'.
+4. Tap Install.
+5. Open the 'Gym App' from your app menu.
+
+Note: This is a debug build. It will work exactly like your website but as a native app.

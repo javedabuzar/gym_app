@@ -3,7 +3,7 @@ import { useGym } from '../context/GymContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const Reports = () => {
-    const { members, attendance } = useGym();
+    const { members, attendance, monthlyReports } = useGym();
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
 
     const reportData = useMemo(() => {
@@ -32,14 +32,16 @@ const Reports = () => {
             };
         });
 
+        const onlineReport = monthlyReports?.find(r => r.month_year === selectedMonth);
+
         return {
-            totalMembers: members.length,
+            totalMembers: onlineReport ? onlineReport.member_count : members.length,
             totalAttendance,
-            feesCollected,
-            feesPending,
+            feesCollected: onlineReport ? Number(onlineReport.revenue_collected) : feesCollected,
+            feesPending: onlineReport ? Number(onlineReport.revenue_pending) : feesPending,
             memberStats
         };
-    }, [selectedMonth, members, attendance]);
+    }, [selectedMonth, members, attendance, monthlyReports]);
 
     return (
         <div className="space-y-8">

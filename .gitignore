@@ -1,5 +1,17 @@
-/node_modules
-
+node_modules/
+dist/
 .env
-
-.vscode
+.vscode/
+# Android
+android/build/
+android/.gradle/
+*.apk
+# JDKs / Java
+jdk/
+java-*-openjdk*/
+*.log
+# IDEs
+.idea/
+.project
+.settings/
+build/

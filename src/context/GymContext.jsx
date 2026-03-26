@@ -1,5 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../supabaseClient';
+import { db } from '../db';
+import { exportData, importData } from '../utils/backupUtils';
 
 const GymContext = createContext();
 
@@ -8,17 +10,20 @@ export const useGym = () => useContext(GymContext);
 export const GymProvider = ({ children }) => {
     const [members, setMembers] = useState([]);
     const [attendance, setAttendance] = useState({});
-    const [payments, setPayments] = useState([]); // NEW: Payment History
+    const [payments, setPayments] = useState([]);
     const [user, setUser] = useState(null);
     const [classes, setClasses] = useState([]);
+    const [plans, setPlans] = useState([]);
     const [loading, setLoading] = useState(true);
     const [adminAccount, setAdminAccount] = useState(null);
     const [adminStatusLoading, setAdminStatusLoading] = useState(false);
+    const [onlineActiveMembers, setOnlineActiveMembers] = useState([]);
+    const [monthlyReports, setMonthlyReports] = useState([]);
 
     // Core Settings
-    const [baseGymFee, setBaseGymFee] = useState(3000); // Base Monthly Membership (PKR)
+    const [baseGymFee, setBaseGymFee] = useState(3000);
 
-    // New System Settings (Mock Database)
+    // System Settings (Synced from Supabase)
     const [supplementSettings, setSupplementSettings] = useState({
         creatine: { price: 100, isAuto: true },
         whey: { price: 300, isAuto: true },
@@ -28,24 +33,18 @@ export const GymProvider = ({ children }) => {
     const [cardioSettings, setCardioSettings] = useState({
         weeklyPrice: 1000,
         monthlyPrice: 3000,
-        unlimitedMultiplier: 1.5, // 50% extra for unlimited
+        unlimitedMultiplier: 1.5,
         manualOverride: false
     });
 
     const [ptSettings, setPtSettings] = useState({
-        rates: {
-            one_month: 20000,
-            six_months: 100000,
-            one_year: 180000
-        }
+        rates: { one_month: 20000, six_months: 100000, one_year: 180000 }
     });
 
-    // Subscriptions State (Mock Database)
     const [cardioSubscriptions, setCardioSubscriptions] = useState({});
     const [ptSubscriptions, setPtSubscriptions] = useState({});
 
     useEffect(() => {
-        // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUser(session?.user ?? null);
             setLoading(false);
@@ -62,32 +61,6 @@ export const GymProvider = ({ children }) => {
         adminAccount?.approval_status === 'approved' &&
         adminAccount?.payment_status === 'approved' &&
         adminAccount?.is_active === true;
-
-    const ensureAdminAccount = async (authUser) => {
-        if (!authUser?.id) return;
-
-        const meta = authUser.user_metadata || {};
-        const planType = meta.plan_type || 'monthly';
-        const planPrice = Number(meta.plan_price || 5000);
-
-        // Use INSERT (not upsert) to avoid overwriting an already-approved account
-        const { error } = await supabase.from('admin_accounts').insert({
-            user_id: authUser.id,
-            full_name: meta.full_name || authUser.email,
-            gym_name: meta.gym_name || 'New Gym',
-            email: authUser.email,
-            plan_type: planType,
-            plan_price: planPrice,
-            payment_status: 'pending',
-            approval_status: 'pending',
-            is_active: false
-        });
-
-        // 23505 = unique_violation (row already exists) — expected and safe to ignore
-        if (error && error.code !== '23505') {
-            console.error('Error ensuring admin account:', error);
-        }
-    };
 
     const fetchAdminAccount = async (authUser) => {
         const userId = authUser?.id;
@@ -110,19 +83,6 @@ export const GymProvider = ({ children }) => {
             return null;
         }
 
-        if (!data) {
-            await ensureAdminAccount(authUser);
-            const { data: retryData } = await supabase
-                .from('admin_accounts')
-                .select('*')
-                .eq('user_id', userId)
-                .maybeSingle();
-
-            setAdminAccount(retryData || null);
-            setAdminStatusLoading(false);
-            return retryData || null;
-        }
-
         setAdminAccount(data || null);
         setAdminStatusLoading(false);
         return data || null;
@@ -132,113 +92,78 @@ export const GymProvider = ({ children }) => {
         if (!user || !isAdminApproved) return;
 
         const ownerId = user.id;
-        console.log('📡 fetchData — ownerId:', ownerId);
 
-        let { data: membersData, error: membersError } = await supabase.from('members').select('*').eq('owner_id', ownerId);
+        // --- Load Local Operational Data from Dexie (Filtered by Owner) ---
+        const localMembers = await db.members.where('owner_id').equals(ownerId).toArray();
+        setMembers(localMembers);
 
-        if (membersError) {
-            console.error('❌ Error fetching members:', membersError);
-        }
+        const localAttendance = await db.attendance.where('owner_id').equals(ownerId).toArray();
+        const attendanceMap = {};
+        localAttendance.forEach(record => {
+            if (!attendanceMap[record.member_id]) attendanceMap[record.member_id] = [];
+            attendanceMap[record.member_id].push(record.date);
+        });
+        setAttendance(attendanceMap);
 
-        if (membersData) {
-            // Check for monthly reset
-            const currentMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
-            const lastReset = localStorage.getItem('gym_last_reset');
+        const localPayments = await db.payments.where('owner_id').equals(ownerId).toArray();
+        setPayments(localPayments);
 
-            if (lastReset !== currentMonth) {
-                console.log("New month detected. Resetting payment status...");
-
-                // Reset all 'Paid' members to 'Unpaid'
-                const updates = membersData.map(async (member) => {
-                    if (member.payment === 'Paid') {
-                        const { error } = await supabase
-                            .from('members')
-                            .update({ payment: 'Unpaid' })
-                            .eq('id', member.id);
-
-                        if (!error) {
-                            return { ...member, payment: 'Unpaid' };
-                        }
-                    }
-                    return member;
-                });
-
-                // Wait for all updates to complete
-                membersData = await Promise.all(updates);
-
-                // Update local storage
-                localStorage.setItem('gym_last_reset', currentMonth);
-            }
-
-            setMembers(membersData);
-        }
-
-        const { data: classesData, error: classesError } = await supabase.from('classes').select('*').eq('owner_id', ownerId);
-        if (classesError) console.error('❌ Error fetching classes:', classesError);
-        if (classesData) setClasses(classesData);
-
-        const { data: attendanceData, error: attendanceError } = await supabase.from('attendance').select('*').eq('owner_id', ownerId);
-        if (attendanceError) console.error('❌ Error fetching attendance:', attendanceError);
-        if (attendanceData) {
-            // Group attendance by member_id
-            const attendanceMap = {};
-            attendanceData.forEach(record => {
-                if (!attendanceMap[record.member_id]) {
-                    attendanceMap[record.member_id] = [];
-                }
-                attendanceMap[record.member_id].push(record.date);
-            });
-            setAttendance(attendanceMap);
-        }
-
-        // --- NEW: Load Payment History ---
-        const { data: paymentsData, error: paymentsError } = await supabase.from('payments').select('*').eq('owner_id', ownerId);
-        if (paymentsError) console.error('❌ Error fetching payments:', paymentsError);
-        if (paymentsData) setPayments(paymentsData);
-
-        // --- NEW: Load Settings from Supabase ---
-        const { data: settingsData, error: settingsError } = await supabase.from('gym_settings').select('*').eq('owner_id', ownerId);
-        if (settingsError) console.error('❌ Error fetching settings:', settingsError);
-        if (settingsData) {
-            settingsData.forEach(setting => {
+        // --- Load Local Settings from Dexie (Filtered by Owner) ---
+        const localSettings = await db.gym_settings.where('owner_id').equals(ownerId).toArray();
+        if (localSettings.length > 0) {
+            localSettings.forEach(setting => {
                 if (setting.category === 'supplement') setSupplementSettings(setting.settings);
                 if (setting.category === 'cardio') setCardioSettings(setting.settings);
                 if (setting.category === 'pt') setPtSettings(setting.settings);
             });
         }
 
-        // --- NEW: Load Cardio Subscriptions ---
-        const { data: cardioData, error: cardioError } = await supabase.from('cardio_subscriptions').select('*').eq('owner_id', ownerId).eq('status', 'Active');
-        if (cardioError) console.error('❌ Error fetching cardio subscriptions:', cardioError);
-        if (cardioData) {
-            const cardioMap = {};
-            cardioData.forEach(sub => {
-                cardioMap[sub.member_id] = {
-                    duration: sub.duration,
-                    type: sub.type,
-                    price: sub.price,
-                    active: sub.status === 'Active',
-                    startDate: sub.start_date
-                };
-            });
-            setCardioSubscriptions(cardioMap);
-        }
+        // --- Load Local Subscriptions from Dexie (Filtered by Owner & Active) ---
+        const localCardio = await db.cardio_subscriptions
+            .where('owner_id').equals(ownerId)
+            .filter(sub => sub.status === 'Active')
+            .toArray();
 
-        // --- NEW: Load PT Subscriptions ---
-        const { data: ptData, error: ptError } = await supabase.from('training_plans').select('*').eq('owner_id', ownerId).eq('status', 'Active');
-        if (ptError) console.error('❌ Error fetching training plans:', ptError);
-        if (ptData) {
-            const ptMap = {};
-            ptData.forEach(plan => {
-                ptMap[plan.member_id] = {
-                    duration: plan.plan_type,
-                    price: plan.price,
-                    active: plan.status === 'Active',
-                    startDate: new Date(plan.start_date || plan.created_at).toLocaleDateString()
-                };
-            });
-            setPtSubscriptions(ptMap);
+        const cardioMap = {};
+        localCardio.forEach(sub => {
+            cardioMap[sub.member_id] = {
+                duration: sub.duration, type: sub.type, price: sub.price,
+                active: true, startDate: sub.start_date
+            };
+        });
+        setCardioSubscriptions(cardioMap);
+
+        const localPt = await db.training_plans
+            .where('owner_id').equals(ownerId)
+            .filter(plan => plan.status === 'Active')
+            .toArray();
+
+        const ptMap = {};
+        localPt.forEach(plan => {
+            ptMap[plan.member_id] = {
+                duration: plan.plan_type, price: plan.price,
+                active: true, startDate: new Date(plan.start_date || plan.created_at).toLocaleDateString()
+            };
+        });
+        setPtSubscriptions(ptMap);
+
+        const localClasses = await db.classes.where('owner_id').equals(ownerId).toArray();
+        setClasses(localClasses);
+
+        let localPlans = await db.plans.where('owner_id').equals(ownerId).toArray();
+        if (localPlans.length === 0) {
+            // Default Plans
+            const defaults = [
+                { name: 'Basic', fee: 3000, owner_id: ownerId },
+                { name: 'Standard', fee: 5000, owner_id: ownerId },
+                { name: 'VIP', fee: 8000, owner_id: ownerId }
+            ];
+            for (const plan of defaults) {
+                await db.plans.add(plan);
+            }
+            localPlans = await db.plans.where('owner_id').equals(ownerId).toArray();
         }
+        setPlans(localPlans);
     };
 
     useEffect(() => {
@@ -253,6 +178,126 @@ export const GymProvider = ({ children }) => {
         fetchData();
     }, [user, isAdminApproved]);
 
+    // Operational Functions (Dexie-only)
+    const addMember = async (member) => {
+        const newMember = {
+            ...member,
+            owner_id: user.id,
+            contact: member.contact || '',
+            join_date: new Date().toISOString(),
+            profile: member.profile || `https://i.pravatar.cc/150?u=${member.name + Date.now()}`
+        };
+        const id = await db.members.add(newMember);
+        const savedMember = { ...newMember, id };
+        setMembers([...members, savedMember]);
+        return savedMember;
+    };
+
+    const updateMember = async (id, updates) => {
+        await db.members.update(id, updates);
+        setMembers(members.map(m => m.id === id ? { ...m, ...updates } : m));
+
+        if (updates.payment === 'Paid') {
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            const alreadyPaid = payments.some(p => p.member_id === id && p.month_year === currentMonth);
+            if (!alreadyPaid) {
+                const memberFee = members.find(m => m.id === id)?.fee || baseGymFee;
+                const newPayment = { member_id: id, owner_id: user.id, month_year: currentMonth, amount: memberFee, status: 'Paid' };
+                const payId = await db.payments.add(newPayment);
+                setPayments([...payments, { ...newPayment, id: payId }]);
+            }
+        }
+    };
+
+    const removeMember = async (id) => {
+        await db.members.delete(id);
+        await db.attendance.where('member_id').equals(id).delete();
+        await db.payments.where('member_id').equals(id).delete();
+        setMembers(members.filter(m => m.id !== id));
+    };
+
+    const markAttendance = async (id) => {
+        const today = new Date().toISOString().slice(0, 10);
+        const memberAttendance = attendance[id] || [];
+        if (memberAttendance.includes(today)) return { success: false, message: 'Already marked' };
+
+        await db.attendance.add({ member_id: id, date: today, owner_id: user.id });
+        setAttendance({ ...attendance, [id]: [...memberAttendance, today] });
+        return { success: true, message: 'Marked!' };
+    };
+
+    const unmarkAttendance = async (id) => {
+        const today = new Date().toISOString().slice(0, 10);
+        await db.attendance.where({ member_id: id, date: today }).delete();
+        setAttendance({ ...attendance, [id]: (attendance[id] || []).filter(d => d !== today) });
+        return { success: true, message: 'Unmarked!' };
+    };
+    const togglePaymentStatus = async (memberId, monthYear) => {
+        const existing = payments.find(p => p.member_id == memberId && p.month_year === monthYear);
+        const newStatus = existing?.status === 'Paid' ? 'Unpaid' : 'Paid';
+        const fee = newStatus === 'Paid' ? (members.find(m => m.id == memberId)?.fee || baseGymFee) : 0;
+
+        if (existing) {
+            await db.payments.update(existing.id, { status: newStatus, amount: fee });
+            setPayments(payments.map(p => p.id === existing.id ? { ...p, status: newStatus, amount: fee } : p));
+        } else {
+            const newPay = { member_id: memberId, owner_id: user.id, month_year: monthYear, status: newStatus, amount: fee };
+            const id = await db.payments.add(newPay);
+            setPayments([...payments, { ...newPay, id }]);
+        }
+        return { success: true, status: newStatus };
+    };
+
+    const addClass = async (classData) => {
+        const newClass = { ...classData, owner_id: user.id };
+        const id = await db.classes.add(newClass);
+        const saved = { ...newClass, id };
+        setClasses([...classes, saved]);
+        return saved;
+    };
+
+    const removeClass = async (id) => {
+        await db.classes.delete(id);
+        setClasses(classes.filter(c => c.id !== id));
+    };
+
+    const addPlan = async (planData) => {
+        const newPlan = { ...planData, owner_id: user.id };
+        const id = await db.plans.add(newPlan);
+        const saved = { ...newPlan, id };
+        setPlans([...plans, saved]);
+        return saved;
+    };
+
+    const removePlan = async (id) => {
+        await db.plans.delete(id);
+        setPlans(plans.filter(p => p.id !== id));
+    };
+
+    const updatePaymentStatus = async (memberId, monthYear, status) => {
+        const existing = payments.find(p => p.member_id == memberId && p.month_year === monthYear);
+        const fee = status === 'Paid' ? (members.find(m => m.id == memberId)?.fee || baseGymFee) : 0;
+
+        if (existing) {
+            await db.payments.update(existing.id, { status, amount: fee });
+            setPayments(payments.map(p => p.id === existing.id ? { ...p, status, amount: fee } : p));
+        } else {
+            const newPay = { member_id: memberId, owner_id: user.id, month_year: monthYear, status, amount: fee };
+            const id = await db.payments.add(newPay);
+            setPayments([...payments, { ...newPay, id }]);
+        }
+        return { success: true, status };
+    };
+
+    // Backup & Restore
+    const backupData = async () => await exportData();
+    const restoreData = async (file) => {
+        const res = await importData(file);
+        if (res.success) await fetchData();
+        return res;
+    };
+
+    // Authentication
     const registerAdmin = async ({ fullName, gymName, email, password, planType }) => {
         const planPrices = {
             monthly: 5000,
@@ -273,449 +318,49 @@ export const GymProvider = ({ children }) => {
                 }
             }
         });
-        if (signUpError) {
-            console.error('Signup failed:', {
-                message: signUpError.message,
-                status: signUpError.status,
-                code: signUpError.code,
-                details: signUpError
-            });
-        }
 
         if (signUpError) {
-            return {
-                success: false,
-                message: signUpError.message || 'Signup failed. Check Supabase Auth settings/logs.'
-            };
+            console.error('Signup failed:', signUpError);
+            return { success: false, message: signUpError.message };
         }
 
-        const newUserId = signUpData?.user?.id;
-
-        if (!newUserId) {
-            return {
-                success: false,
-                message: 'Account created but no user session found. Please verify email and log in.'
-            };
-        }
-
-        // The database trigger (on_auth_user_created) automatically creates the
-        // admin_accounts row from user_metadata, so the payment dashboard will
-        // see the request immediately. We still try a client-side insert as a
-        // backup in case the trigger hasn't been applied to the database yet.
-
-        const adminPayload = {
-            id: newUserId,
-            email,
-            user_metadata: {
-                full_name: fullName,
-                gym_name: gymName,
-                plan_type: planType,
-                plan_price: planPrices[planType] || 5000
-            }
-        };
-
-        // If signup returned a session (email confirmation disabled), we're
-        // already authenticated and can insert directly.
-        if (signUpData?.session) {
-            await ensureAdminAccount(adminPayload);
-            await supabase.auth.signOut();
-            return {
-                success: true,
-                message: 'Account created and request sent to super admin! Complete payment via QR and wait for approval.'
-            };
-        }
-
-        // No session from signup — try signing in explicitly (works when
-        // Supabase auto-confirms but doesn't return a session object).
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (!signInError) {
-            await ensureAdminAccount(adminPayload);
-            await supabase.auth.signOut();
-            return {
-                success: true,
-                message: 'Account created and request sent to super admin! Complete payment via QR and wait for approval.'
-            };
-        }
-
-        // Sign-in failed (email confirmation required). The database trigger
-        // has already created the admin_accounts row, so it will still appear
-        // on the payment dashboard.
         return {
             success: true,
-            message: 'Account created! Please check your email to verify, then log in. Your request has been sent to the super admin.'
+            message: 'Account created! Please check your email to verify, then wait for super admin approval.'
         };
-    };
-
-    const addMember = async (member) => {
-        const { data, error } = await supabase.from('members').insert([{
-            ...member,
-            owner_id: user.id,
-            contact: member.contact || '', // Ensure contact is passed even if empty
-            join_date: new Date().toISOString(),
-            // Only use default avatar if no profile image is provided
-            profile: member.profile || `https://i.pravatar.cc/150?u=${member.name + Date.now()}`
-        }]).select();
-
-        if (!error && data) {
-            setMembers([...members, data[0]]);
-            return data[0];
-        }
-        console.error("Error adding member:", error);
-        return null;
-    };
-
-    const updateMember = async (id, updates) => {
-        // Optimistic update for UI responsiveness
-        setMembers(members.map(m => m.id === id ? { ...m, ...updates } : m));
-
-        const { error } = await supabase.from('members').update(updates).eq('id', id);
-        if (error) {
-            console.error("Error updating member:", error);
-            // Optionally revert here if strictly needed, but for 'extra' fields not in DB, we keep them locally
-        } else {
-            // NEW: Auto-log payment if marking as Paid
-            if (updates.payment === 'Paid') {
-                const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-
-                // Check local state to avoid duplicates (though DB unique constraint also protects)
-                const alreadyPaid = payments.some(p => p.member_id === id && p.month_year === currentMonth);
-
-                if (!alreadyPaid) {
-                    const memberFee = members.find(m => m.id === id)?.fee || baseGymFee;
-
-                    const { data: newPayment, error: payError } = await supabase.from('payments').insert([{
-                        member_id: id,
-                        owner_id: user.id,
-                        month_year: currentMonth,
-                        amount: memberFee,
-                        status: 'Paid'
-                    }]).select();
-
-                    if (!payError && newPayment) {
-                        setPayments([...payments, newPayment[0]]);
-                        console.log("Auto-payment recorded:", newPayment[0]);
-                    } else if (payError) {
-                        console.error("Auto-payment failed (might be duplicate):", payError);
-                    }
-                }
-            }
-        }
-    };
-
-    const togglePaymentStatus = async (memberId, monthYear) => {
-        // Find existing record
-        const existingPayment = payments.find(p => p.member_id == memberId && p.month_year === monthYear);
-        const newStatus = existingPayment?.status === 'Paid' ? 'Unpaid' : 'Paid';
-
-        // OPTIMISTIC UPDATE: Update UI immediately
-        const tempId = Date.now(); // Temporary ID
-        const optimisticPayment = {
-            id: existingPayment?.id || tempId,
-            member_id: memberId,
-            month_year: monthYear,
-            status: newStatus,
-            amount: newStatus === 'Paid' ? (members.find(m => m.id == memberId)?.fee || baseGymFee) : 0
-        };
-
-        const previousPayments = [...payments];
-        const otherPayments = payments.filter(p => !(p.member_id == memberId && p.month_year === monthYear));
-        setPayments([...otherPayments, optimisticPayment]);
-
-        console.log(`Toggling payment for ${memberId} ${monthYear}: ${existingPayment?.status} -> ${newStatus}`);
-
-        const amount = optimisticPayment.amount;
-
-        const { data, error } = await supabase.from('payments').upsert([{
-            member_id: memberId,
-            owner_id: user.id,
-            month_year: monthYear,
-            amount: amount,
-            status: newStatus
-        }], { onConflict: 'member_id, month_year' }).select();
-
-        if (!error && data) {
-            // Update with real data from server (mainly for correct ID)
-            const confirmedPayment = data[0];
-            const others = payments.filter(p => !(p.member_id == memberId && p.month_year === monthYear));
-            // Note: We use the *current* state of payments here, but for safety in this simple context:
-            // We can just replace the optimistic one.
-            setPayments(prev => {
-                const filtered = prev.filter(p => !(p.member_id == memberId && p.month_year === monthYear));
-                return [...filtered, confirmedPayment];
-            });
-            return { success: true, status: newStatus };
-        } else {
-            console.error("Payment toggle error:", error);
-            // Revert changes
-            setPayments(previousPayments);
-            return { success: false, message: error ? error.message : 'Unknown error' };
-        }
-    };
-
-    const updatePaymentStatus = async (memberId, monthYear, status) => {
-        console.log(`Setting payment for ${memberId} ${monthYear} to ${status}`);
-
-        // OPTIMISTIC UPDATE
-        const existingPayment = payments.find(p => p.member_id == memberId && p.month_year === monthYear);
-        const previousPayments = [...payments];
-
-        const optimisticPayment = {
-            id: existingPayment?.id || Date.now(),
-            member_id: memberId,
-            month_year: monthYear,
-            status: status,
-            amount: status === 'Paid' ? (members.find(m => m.id == memberId)?.fee || baseGymFee) : 0
-        };
-
-        // Apply optimistic state
-        setPayments(prev => {
-            const filtered = prev.filter(p => !(p.member_id == memberId && p.month_year === monthYear));
-            return [...filtered, optimisticPayment];
-        });
-
-        const amount = optimisticPayment.amount;
-
-        const { data, error } = await supabase.from('payments').upsert([{
-            member_id: memberId,
-            owner_id: user.id,
-            month_year: monthYear,
-            amount: amount,
-            status: status
-        }], { onConflict: 'member_id, month_year' }).select();
-
-        if (!error && data) {
-            const confirmedPayment = data[0];
-            setPayments(prev => {
-                const filtered = prev.filter(p => !(p.member_id == memberId && p.month_year === monthYear));
-                return [...filtered, confirmedPayment];
-            });
-            return { success: true, status: status };
-        } else {
-            console.error("Payment update error:", error);
-            // Revert changes
-            setPayments(previousPayments);
-            return { success: false, message: error ? error.message : 'Unknown error' };
-        }
-    };
-
-    const removeMember = async (id) => {
-        const { error } = await supabase.from('members').delete().eq('id', id);
-        if (!error) {
-            setMembers(members.filter(m => m.id !== id));
-            // Also update local attendance state if needed
-            const newAttendance = { ...attendance };
-            delete newAttendance[id];
-            setAttendance(newAttendance);
-        } else {
-            console.error("Error removing member:", error);
-        }
-    };
-
-    const markAttendance = async (id) => {
-        // Use local time instead of UTC to fix "missing" attendance issues
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const today = `${year}-${month}-${day}`;
-
-        const memberAttendance = attendance[id] || [];
-
-        if (memberAttendance.includes(today)) {
-            return { success: false, message: 'Already marked for today' };
-        }
-
-        const { error } = await supabase.from('attendance').insert([
-            { member_id: id, owner_id: user.id, date: today }
-        ]);
-
-        if (!error) {
-            setAttendance({
-                ...attendance,
-                [id]: [...memberAttendance, today]
-            });
-            return { success: true, message: 'Attendance marked!' };
-        } else if (error.code === '23505') {
-            console.warn("Attendance already marked (duplicate):", error);
-            return { success: false, message: 'Already marked for today' };
-        } else {
-            console.error("Error marking attendance:", error);
-            return { success: false, message: 'Error marking attendance' };
-        }
-    };
-
-    const unmarkAttendance = async (id) => {
-        // Use local time instead of UTC
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const today = `${year}-${month}-${day}`;
-
-        const memberAttendance = attendance[id] || [];
-
-        if (!memberAttendance.includes(today)) {
-            return { success: false, message: 'Not marked for today' };
-        }
-
-        const { error } = await supabase.from('attendance')
-            .delete()
-            .eq('member_id', id)
-            .eq('date', today);
-
-        if (!error) {
-            setAttendance({
-                ...attendance,
-                [id]: memberAttendance.filter(date => date !== today)
-            });
-            return { success: true, message: 'Attendance unmarked!' };
-        } else {
-            console.error("Error unmarking attendance:", error);
-            return { success: false, message: 'Error unmarking attendance' };
-        }
-    };
-
-    const getMemberAttendance = (id) => {
-        return attendance[id] || [];
     };
 
     const login = async (email, password) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-        if (error) {
-            console.error("Login error:", error);
-            return false;
-        }
-        return true;
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        return !error;
     };
 
-    const logout = async () => {
-        await supabase.auth.signOut();
-    };
-
-    const addClass = async (newClass) => {
-        const { data, error } = await supabase.from('classes').insert([{ ...newClass, owner_id: user.id }]).select();
-        if (!error && data) {
-            setClasses([...classes, data[0]]);
-            return data[0];
-        } else {
-            console.error("Error adding class:", error);
-            return null;
-        }
-    };
-
-    const removeClass = async (id) => {
-        const { error } = await supabase.from('classes').delete().eq('id', id);
-        if (!error) {
-            setClasses(classes.filter(c => c.id !== id));
-        } else {
-            console.error("Error removing class:", error);
-        }
-    };
-
-    // --- Persistence Helpers ---
+    const logout = async () => await supabase.auth.signOut();
 
     const saveSettings = async (category, newSettings) => {
-        // Optimistic Update
         if (category === 'supplement') setSupplementSettings(newSettings);
         if (category === 'cardio') setCardioSettings(newSettings);
         if (category === 'pt') setPtSettings(newSettings);
 
-        // Save to Supabase
-        const { error } = await supabase.from('gym_settings').upsert(
-            { owner_id: user.id, category, settings: newSettings },
-            { onConflict: 'owner_id, category' }
-        );
-
-        if (error) {
-            console.error(`Error saving ${category} settings:`, error);
-        }
-    };
-
-    const assignCardioPlan = async (memberId, plan) => {
-        // Optimistic Update
-        setCardioSubscriptions(prev => ({
-            ...prev,
-            [memberId]: plan
-        }));
-
-        // Save to Supabase
-        const { error } = await supabase.from('cardio_subscriptions').insert({
-            member_id: memberId,
-            owner_id: user.id,
-            duration: plan.duration,
-            type: plan.type,
-            price: plan.price,
-            start_date: new Date().toISOString(),
-            status: 'Active'
-        });
-
-        if (error) console.error("Error assigning cardio plan:", error);
-    };
-
-    const assignPtPlan = async (memberId, plan) => {
-        // Optimistic Update
-        setPtSubscriptions(prev => ({
-            ...prev,
-            [memberId]: plan
-        }));
-
-        // Save to Supabase (training_plans table)
-        const { error } = await supabase.from('training_plans').insert({
-            member_id: memberId,
-            owner_id: user.id,
-            plan_name: 'Personal Training',
-            plan_type: plan.duration,
-            trainer_name: 'Assigned Trainer', // Default or pass in
-            price: plan.price,
-            start_date: new Date().toISOString(),
-            status: 'Active'
-        });
-
-        if (error) console.error("Error assigning PT plan:", error);
+        // Save to local Dexie with owner scoping
+        await db.gym_settings.put({ owner_id: user.id, category, settings: newSettings });
     };
 
     return (
         <GymContext.Provider value={{
-            members,
-            attendance,
-            payments, // NEW
-            addMember,
-            updateMember,
-            removeMember,
-            markAttendance,
-
-            unmarkAttendance, // NEW
-            togglePaymentStatus, // NEW
-            updatePaymentStatus, // NEW
-            getMemberAttendance,
-            user,
-            loading,
-            adminAccount,
-            adminStatusLoading,
-            isAdminApproved,
-            classes,
-            login,
-            logout,
-            registerAdmin,
+            members, attendance, payments, addMember, updateMember, removeMember,
+            markAttendance, unmarkAttendance, togglePaymentStatus, updatePaymentStatus,
+            getMemberAttendance: (id) => attendance[id] || [],
+            user, loading, adminAccount, adminStatusLoading, isAdminApproved,
+            login, logout, registerAdmin, backupData, restoreData,
+            classes, addClass, removeClass,
+            plans, addPlan, removePlan,
+            supplementSettings, setSupplementSettings: (val) => saveSettings('supplement', val),
+            cardioSettings, setCardioSettings: (val) => saveSettings('cardio', val),
+            ptSettings, setPtSettings: (val) => saveSettings('pt', val),
+            cardioSubscriptions, ptSubscriptions, baseGymFee, setBaseGymFee,
             refreshAdminAccount: () => fetchAdminAccount(user),
-            addClass,
-            removeClass,
-            baseGymFee, setBaseGymFee,
-            supplementSettings,
-            setSupplementSettings: (val) => saveSettings('supplement', val),
-            cardioSettings,
-            setCardioSettings: (val) => saveSettings('cardio', val),
-            ptSettings,
-            setPtSettings: (val) => saveSettings('pt', val),
-            cardioSubscriptions,
-            setCardioSubscriptions, // Keep original for now or remove if unused externally
-            assignCardioPlan, // NEW exposed function
-            ptSubscriptions,
-            setPtSubscriptions, // Keep original for now
-            assignPtPlan // NEW exposed function
+            onlineActiveMembers, monthlyReports
         }}>
             {children}
         </GymContext.Provider>

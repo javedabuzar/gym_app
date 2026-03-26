@@ -1,7 +1,8 @@
 import React from 'react';
 import { useGym } from '../context/GymContext';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, Users, DollarSign, Activity } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Activity, Download, Upload, Shield } from 'lucide-react';
+import { useRef } from 'react';
 
 const data = [
     { name: 'Mon', visits: 400, revenue: 2400 },
@@ -35,10 +36,26 @@ const StatCard = ({ title, value, change, icon: Icon, color }) => (
 );
 
 const Dashboard = () => {
-    const { members, attendance, payments } = useGym();
+    const { members, attendance, payments, onlineActiveMembers, backupData, restoreData } = useGym();
+    const fileInputRef = useRef(null);
+
+    const handleImport = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (window.confirm("Importing data will overwrite your current local data. Continue?")) {
+            const res = await restoreData(file);
+            if (res.success) {
+                alert("Data imported successfully!");
+                window.location.reload();
+            } else {
+                alert("Failed: " + res.message);
+            }
+        }
+    };
 
     const totalMembers = members.length;
-    const activeMembers = members.filter(m => m.status === 'Active').length;
+    const activeMembers = onlineActiveMembers.length > 0 ? onlineActiveMembers.length : members.filter(m => m.status === 'Active').length;
 
     // Calculate Revenue for Current Month from Payments Table
     const now = new Date();
@@ -72,16 +89,37 @@ const Dashboard = () => {
     const chartData = getLast7Days();
 
     return (
-        <div className="space-y-8">
-            <div className="flex justify-between items-center">
+        <div className="space-y-6 md:space-y-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-white">Dashboard</h2>
-                    <p className="text-gray-400 mt-1">Welcome back, Admin</p>
+                    <h2 className="text-2xl md:text-3xl font-bold text-white uppercase tracking-tight">Dashboard</h2>
+                    <p className="text-gray-400 mt-1 text-sm md:text-base">Welcome back, Admin</p>
                 </div>
-                {/* <button className="bg-gym-neon text-black px-6 py-2.5 rounded-xl font-bold hover:bg-[#2ecc11] transition-colors shadow-[0_0_20px_rgba(57,255,20,0.3)]">
-                    Download Report
-                </button> */}
+                <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImport}
+                        className="hidden"
+                        accept=".json"
+                    />
+                    <button
+                        onClick={() => fileInputRef.current.click()}
+                        className="flex-1 sm:flex-none bg-white/5 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/10 transition-all border border-white/10 flex items-center justify-center gap-2 group"
+                    >
+                        <Upload size={16} className="text-cyan-400 group-hover:scale-110 transition-transform" />
+                        Import
+                    </button>
+                    <button
+                        onClick={backupData}
+                        className="flex-1 sm:flex-none bg-gym-neon text-black px-4 py-2 rounded-xl text-sm font-bold hover:bg-[#2ecc11] transition-all shadow-[0_0_20px_rgba(57,255,20,0.3)] flex items-center justify-center gap-2 group"
+                    >
+                        <Download size={16} className="group-hover:translate-y-0.5 transition-transform" />
+                        Backup
+                    </button>
+                </div>
             </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard title="Total Members" value={totalMembers} change="0%" icon={Users} color="blue" />

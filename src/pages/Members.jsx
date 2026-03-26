@@ -8,7 +8,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 const Members = () => {
     const navigate = useNavigate();
     try {
-        const { members, attendance, addMember, removeMember, markAttendance, unmarkAttendance, updateMember, getMemberAttendance, payments, togglePaymentStatus, updatePaymentStatus } = useGym();
+        const { members, plans, attendance, addMember, removeMember, markAttendance, unmarkAttendance, updateMember, getMemberAttendance, payments, togglePaymentStatus, updatePaymentStatus } = useGym();
 
         console.log('✅ Members component loaded!', { members });
 
@@ -20,7 +20,7 @@ const Members = () => {
         const [isEditing, setIsEditing] = useState(false);
         const [currentMemberId, setCurrentMemberId] = useState(null);
 
-        const [newMember, setNewMember] = useState({ name: '', contact: '', fee: '', status: 'Active', payment: 'Unpaid', profile: '' });
+        const [newMember, setNewMember] = useState({ name: '', contact: '', fee: '', plan: '', status: 'Active', payment: 'Unpaid', profile: '' });
         const [selectedMemberQR, setSelectedMemberQR] = useState(null);
         const [isCameraOpen, setIsCameraOpen] = useState(false);
         const [facingMode, setFacingMode] = useState('user'); // 'user' or 'environment'
@@ -39,7 +39,7 @@ const Members = () => {
                 if (!res) return alert('Failed to add member');
             }
 
-            setNewMember({ name: '', contact: '', fee: '', status: 'Active', payment: 'Unpaid', profile: '' });
+            setNewMember({ name: '', contact: '', fee: '', plan: '', status: 'Active', payment: 'Unpaid', profile: '' });
             setShowAddForm(false);
         };
 
@@ -49,6 +49,7 @@ const Members = () => {
                 contact: member.contact || '',
 
                 fee: member.fee,
+                plan: member.plan || '',
                 status: member.status,
                 profile: member.profile || ''
             });
@@ -183,40 +184,47 @@ const Members = () => {
         return (
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h2 className="text-3xl font-bold text-white">Member Management</h2>
-                        <p className="text-gray-400 mt-1">Manage your gym members and their subscriptions</p>
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                    <div className="w-full lg:w-auto text-center lg:text-left">
+                        <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight uppercase">Members</h2>
+                        <p className="text-gray-400 mt-1 text-sm md:text-base">Manage gym members and subscriptions</p>
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => navigate('/app/status')} className="bg-purple-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-purple-700 transition-colors flex items-center gap-2">
-                            <Activity size={20} /> Status
-                        </button>
-                        <button onClick={() => navigate('/app/payment')} className="bg-orange-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-orange-700 transition-colors flex items-center gap-2">
-                            <CreditCard size={20} /> Payments
-                        </button>
-                        <div className="w-px h-10 bg-white/10 mx-1"></div>
-                        <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center gap-2">
-                            <FileText size={20} /> CSV
-                        </button>
-                        <button onClick={exportPDF} className="bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-red-700 transition-colors flex items-center gap-2">
-                            <Download size={20} /> PDF
-                        </button>
+                    <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2 w-full lg:w-auto bg-black/20 p-2 lg:p-0 rounded-2xl lg:bg-transparent">
+                        <div className="flex gap-1 w-full sm:w-auto">
+                            <button onClick={() => navigate('/app/status')} className="flex-1 sm:flex-none bg-purple-600/20 text-purple-400 border border-purple-500/30 px-3 py-2 rounded-xl text-xs font-bold hover:bg-purple-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                                <Activity size={16} /> Status
+                            </button>
+                            <button onClick={() => navigate('/app/payment')} className="flex-1 sm:flex-none bg-orange-600/20 text-orange-400 border border-orange-500/30 px-3 py-2 rounded-xl text-xs font-bold hover:bg-orange-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                                <CreditCard size={16} /> Pay
+                            </button>
+                        </div>
+                        
+                        <div className="hidden sm:block w-px h-6 bg-white/10 mx-1"></div>
+                        
+                        <div className="flex gap-1 w-full sm:w-auto">
+                            <button onClick={exportCSV} className="flex-1 sm:flex-none bg-white/5 text-blue-400 border border-white/10 px-3 py-2 rounded-xl text-xs font-bold hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                                <FileText size={16} /> CSV
+                            </button>
+                            <button onClick={exportPDF} className="flex-1 sm:flex-none bg-white/5 text-red-400 border border-white/10 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                                <Download size={16} /> PDF
+                            </button>
+                        </div>
+
                         <button
                             onClick={() => {
                                 setShowAddForm(!showAddForm);
                                 setIsEditing(false);
-
-                                setNewMember({ name: '', contact: '', fee: '', status: 'Active', payment: 'Unpaid', profile: '' });
+                                setNewMember({ name: '', contact: '', fee: '', plan: '', status: 'Active', payment: 'Unpaid', profile: '' });
                                 stopCamera();
                             }}
-                            className="bg-gym-neon text-black px-6 py-2.5 rounded-xl font-bold hover:bg-[#2ecc11] transition-colors shadow-[0_0_20px_rgba(57,255,20,0.3)] flex items-center gap-2"
+                            className="w-full sm:w-auto bg-gym-neon text-black px-6 py-2.5 rounded-xl font-bold hover:bg-[#2ecc11] transition-all shadow-[0_0_20px_rgba(57,255,20,0.2)] flex items-center justify-center gap-2 mt-2 sm:mt-0"
                         >
                             <Plus size={20} />
                             Add Member
                         </button>
                     </div>
                 </div>
+
 
                 {/* Add Member Form */}
                 {showAddForm && (
@@ -297,6 +305,25 @@ const Members = () => {
                             />
 
                             <select
+                                value={newMember.plan}
+                                onChange={e => {
+                                    const selectedPlan = plans.find(p => p.name === e.target.value);
+                                    if (selectedPlan) {
+                                        setNewMember({ ...newMember, plan: selectedPlan.name, fee: selectedPlan.fee });
+                                    } else {
+                                        setNewMember({ ...newMember, plan: e.target.value });
+                                    }
+                                }}
+                                className="bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-gym-neon"
+                            >
+                                <option value="" className="bg-gray-800">Select Plan</option>
+                                {plans.map(plan => (
+                                    <option key={plan.id} value={plan.name} className="bg-gray-800">{plan.name} (Rs. {plan.fee})</option>
+                                ))}
+                                <option value="Custom" className="bg-gray-800">Custom</option>
+                            </select>
+
+                            <select
                                 value={newMember.status}
                                 onChange={e => setNewMember({ ...newMember, status: e.target.value })}
                                 className="bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-gym-neon"
@@ -355,7 +382,10 @@ const Members = () => {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-white">Rs. {member.fee}</td>
+                                            <td className="px-6 py-4 text-white">
+                                                <div className="font-medium text-gym-neon">Rs. {member.fee}</div>
+                                                <div className="text-[10px] text-gray-500 uppercase tracking-tighter">{member.plan || 'Custom Plan'}</div>
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <span className={`font-medium ${member.status === 'Active' ? 'text-gym-neon' : 'text-gray-400'}`}>
                                                     {member.status}
@@ -472,94 +502,74 @@ const Members = () => {
                                         <X size={24} />
                                     </button>
                                 </div>
-
-                                <div className="p-8">
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                <div className="p-4 md:p-8">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                                         {Array.from({ length: 12 }).map((_, i) => {
                                             const date = new Date(reportYear, i, 1);
-                                            const monthName = date.toLocaleString('default', { month: 'long' });
+                                            const monthName = date.toLocaleString('default', { month: 'short' });
                                             const monthKey = `${date.getFullYear()}-${String(i + 1).padStart(2, '0')}`;
-
-                                            // Check payment status
+                                            
                                             const paymentRecord = payments?.find(p => p.member_id == selectedMemberReport.id && p.month_year === monthKey);
                                             const isPaid = paymentRecord?.status === 'Paid';
                                             const isExplicitUnpaid = paymentRecord?.status === 'Unpaid';
-
-                                            // Status Logic
-                                            const currentMonthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
+                                            const currentMonthKey = new Date().toISOString().slice(0, 7);
                                             const isPast = monthKey < currentMonthKey;
-                                            const isCurrent = monthKey === currentMonthKey;
-                                            const canEdit = isCurrent || isUnlockMode; // Allow edit if current OR unlocked
+                                            const canEdit = monthKey === currentMonthKey || isUnlockMode;
 
                                             let statusColor = "bg-white/5 border-white/10 text-gray-500";
                                             let statusIcon = null;
                                             let statusText = "Future";
 
                                             if (isPaid) {
-                                                statusColor = "bg-green-500/10 border-green-500/50 text-green-500 shadow-[0_0_10px_rgba(34,197,94,0.2)]";
-                                                statusIcon = <CheckCircle size={16} />;
+                                                statusColor = "bg-green-500/10 border-green-500/30 text-green-500 shadow-[0_0_10px_rgba(34,197,94,0.1)]";
+                                                statusIcon = <CheckCircle size={14} />;
                                                 statusText = "Paid";
-                                            } else if (isExplicitUnpaid) {
-                                                statusColor = "bg-red-500/10 border-red-500/50 text-red-500";
-                                                statusIcon = <X size={16} />;
+                                            } else if (isExplicitUnpaid || (isPast && !isPaid)) {
+                                                statusColor = "bg-red-500/10 border-red-500/30 text-red-500";
+                                                statusIcon = <X size={14} />;
                                                 statusText = "Unpaid";
-                                            } else if (isPast) {
-                                                statusColor = "bg-red-500/10 border-red-500/50 text-red-500";
-                                                statusIcon = <X size={16} />;
-                                                statusText = "Unpaid";
-                                            } else if (isCurrent) {
-                                                statusColor = "bg-yellow-500/10 border-yellow-500/50 text-yellow-500 animate-pulse";
-                                                statusIcon = <Activity size={16} />;
+                                            } else if (monthKey === currentMonthKey) {
+                                                statusColor = "bg-yellow-500/10 border-yellow-500/30 text-yellow-500 animate-pulse";
+                                                statusIcon = <Activity size={14} />;
                                                 statusText = "Pending";
                                             }
 
-                                            // Attendance Count Logic
                                             const memberAttendance = attendance[selectedMemberReport.id] || [];
-                                            console.log(`Checking attendance for Member ${selectedMemberReport.id} Month ${monthKey}:`, memberAttendance);
                                             const daysPresent = memberAttendance.filter(dateStr => dateStr.startsWith(monthKey)).length;
 
                                             return (
                                                 <div key={i} onClick={async () => {
                                                     if (!canEdit) return;
-                                                    const result = await togglePaymentStatus(selectedMemberReport.id, monthKey);
-                                                    if (!result.success && result.message) alert(`Error: ${result.message}`);
-                                                }} className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${canEdit ? 'hover:scale-105 cursor-pointer' : 'opacity-50 cursor-not-allowed'} ${statusColor}`}>
-                                                    <span className="text-sm font-bold uppercase tracking-wider">{monthName}</span>
-                                                    <div className="flex items-center gap-1 text-xs font-medium">
+                                                    await togglePaymentStatus(selectedMemberReport.id, monthKey);
+                                                }} className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${canEdit ? 'hover:scale-105 cursor-pointer active:scale-95' : 'opacity-60 cursor-not-allowed'} ${statusColor}`}>
+                                                    <span className="text-xs font-black uppercase tracking-widest">{monthName}</span>
+                                                    <div className="flex items-center gap-1 text-[10px] font-bold">
                                                         {statusIcon}
                                                         <span>{statusText}</span>
                                                     </div>
-
-                                                    {/* Attendance Count */}
-                                                    <div className="mt-2 text-xs text-center border-t border-white/10 pt-2 w-full">
-                                                        <p className="text-gray-400">Days Present: <span className="text-white font-bold">{daysPresent}</span></p>
+                                                    <div className="mt-1 text-[9px] text-center border-t border-white/5 pt-1 w-full opacity-60">
+                                                        {daysPresent} Days
                                                     </div>
-
-                                                    {/* Explicit Actions */}
-                                                    <div className="flex gap-2 mt-2 w-full">
+                                                    <div className="flex gap-1 mt-1 w-full scale-90 sm:scale-100 origin-center">
                                                         <button
                                                             onClick={async (e) => {
                                                                 e.stopPropagation();
-                                                                if (!canEdit) return;
-                                                                const result = await updatePaymentStatus(selectedMemberReport.id, monthKey, 'Paid');
-                                                                if (!result.success && result.message) alert(`Error: ${result.message}`);
+                                                                if (canEdit) await updatePaymentStatus(selectedMemberReport.id, monthKey, 'Paid');
                                                             }}
-                                                            className={`flex-1 py-1 text-xs font-bold rounded ${isPaid ? 'bg-green-500 text-black cursor-default' : 'bg-white/10 text-gray-400 ' + (canEdit ? 'hover:bg-green-500/20 hover:text-green-500' : '')}`}
+                                                            className={`flex-1 py-0.5 text-[8px] font-black rounded ${isPaid ? 'bg-green-500 text-black' : 'bg-white/5'}`}
                                                             disabled={isPaid || !canEdit}
                                                         >
-                                                            Paid
+                                                            PAID
                                                         </button>
                                                         <button
                                                             onClick={async (e) => {
                                                                 e.stopPropagation();
-                                                                if (!canEdit) return;
-                                                                const result = await updatePaymentStatus(selectedMemberReport.id, monthKey, 'Unpaid');
-                                                                if (!result.success && result.message) alert(`Error: ${result.message}`);
+                                                                if (canEdit) await updatePaymentStatus(selectedMemberReport.id, monthKey, 'Unpaid');
                                                             }}
-                                                            className={`flex-1 py-1 text-xs font-bold rounded ${isExplicitUnpaid ? 'bg-red-500/20 text-red-500 cursor-default' : 'bg-white/10 text-gray-400 ' + (canEdit ? 'hover:bg-red-500/20 hover:text-red-500' : '')}`}
+                                                            className={`flex-1 py-0.5 text-[8px] font-black rounded ${isExplicitUnpaid ? 'bg-red-500 text-white' : 'bg-white/5'}`}
                                                             disabled={isExplicitUnpaid || !canEdit}
                                                         >
-                                                            Unpaid
+                                                            FAIL
                                                         </button>
                                                     </div>
                                                 </div>

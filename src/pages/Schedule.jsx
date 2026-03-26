@@ -63,61 +63,66 @@ const Schedule = () => {
             )}
 
             <div className="bg-gym-card backdrop-blur-xl rounded-2xl border border-white/5 overflow-hidden">
-                <div className="grid grid-cols-8 border-b border-white/5">
-                    <div className="p-4 border-r border-white/5 text-gray-500 font-medium text-sm">Time</div>
-                    {WEEK_DAYS.map(day => (
-                        <div key={day} className="p-4 border-r border-white/5 text-center last:border-r-0">
-                            <span className="text-white font-bold block">{day}</span>
+                <div className="overflow-x-auto custom-scrollbar">
+                    <div className="min-w-[800px]">
+                        <div className="grid grid-cols-8 border-b border-white/5 bg-black/40">
+                            <div className="p-4 border-r border-white/5 text-gray-400 font-bold text-xs uppercase tracking-wider sticky left-0 bg-[#0a0a0a] z-10">Time</div>
+                            {WEEK_DAYS.map(day => (
+                                <div key={day} className="p-4 border-r border-white/5 text-center last:border-r-0">
+                                    <span className="text-white font-black text-sm block tracking-widest uppercase">{day}</span>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
 
-                <div className="max-h-[600px] overflow-y-auto">
-                    {TIME_SLOTS.map(time => (
-                        <div key={time} className="grid grid-cols-8 border-b border-white/5 last:border-b-0 min-h-[100px]">
-                            <div className="p-4 border-r border-white/5 text-gray-500 text-sm font-medium sticky left-0 bg-[#1a1a1a]/95 backdrop-blur-sm">
-                                {time}
-                            </div>
-                            {WEEK_DAYS.map(day => {
-                                const classItem = classes.find(c => c.day === day && c.time === time);
-                                return (
-                                    <div key={`${day}-${time}`} className="p-2 border-r border-white/5 last:border-r-0 relative group">
-                                        {classItem && (
-                                            <div className={`
-                        h-full rounded-xl p-3 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg relative
-                        ${classItem.color === 'orange' ? 'bg-orange-500/20 border-orange-500/30 text-orange-400' :
-                                                    classItem.color === 'purple' ? 'bg-purple-500/20 border-purple-500/30 text-purple-400' :
-                                                        classItem.color === 'red' ? 'bg-red-500/20 border-red-500/30 text-red-400' :
-                                                            classItem.color === 'pink' ? 'bg-pink-500/20 border-pink-500/30 text-pink-400' :
-                                                                classItem.color === 'blue' ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' :
-                                                                    classItem.color === 'yellow' ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400' :
-                                                                        'bg-green-500/20 border-green-500/30 text-green-400'}
-                        border
-                      `}>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); removeClass(classItem.id); }}
-                                                    className="absolute top-1 right-1 p-1 text-white/50 hover:text-white hover:bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <Trash2 size={12} />
-                                                </button>
-                                                <h4 className="font-bold text-sm mb-1">{classItem.name}</h4>
-                                                <div className="flex items-center gap-1 text-xs opacity-80 mb-1">
-                                                    <Users size={12} />
-                                                    <span>{classItem.instructor}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 text-xs opacity-80">
-                                                    <Clock size={12} />
-                                                    <span>{classItem.duration}</span>
-                                                </div>
-                                            </div>
-                                        )}
+                        <div className="max-h-[600px] overflow-y-auto">
+                            {TIME_SLOTS.map(time => (
+                                <div key={time} className="grid grid-cols-8 border-b border-white/5 last:border-b-0 min-h-[100px]">
+                                    <div className="p-4 border-r border-white/5 text-gray-500 text-xs font-bold sticky left-0 bg-[#0a0a0a] z-10 flex items-center justify-center">
+                                        {time}
                                     </div>
-                                );
-                            })}
+                                    {WEEK_DAYS.map(day => {
+                                        const classItem = classes.find(c => c.day === day && c.time === time);
+                                        return (
+                                            <div key={`${day}-${time}`} className="p-2 border-r border-white/5 last:border-r-0 relative group min-h-[100px]">
+                                                {classItem && (
+                                                    <div className={`
+                                                        h-full rounded-xl p-3 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg relative
+                                                        ${classItem.color === 'orange' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.1)]' :
+                                                            classItem.color === 'purple' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.1)]' :
+                                                                classItem.color === 'red' ? 'bg-red-500/10 border-red-500/20 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.1)]' :
+                                                                    classItem.color === 'pink' ? 'bg-pink-500/10 border-pink-500/20 text-pink-400 shadow-[0_0_15px_rgba(236,72,153,0.1)]' :
+                                                                        classItem.color === 'blue' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]' :
+                                                                            classItem.color === 'yellow' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.1)]' :
+                                                                                'bg-green-500/10 border-green-500/20 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.1)]'}
+                                                        border
+                                                      `}>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); removeClass(classItem.id); }}
+                                                            className="absolute top-1 right-1 p-1 text-white/50 hover:text-white hover:bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                        <h4 className="font-bold text-xs mb-1 line-clamp-1">{classItem.name}</h4>
+                                                        <div className="flex items-center gap-1 text-[10px] opacity-70 mb-1">
+                                                            <Users size={10} />
+                                                            <span className="truncate">{classItem.instructor}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 text-[10px] opacity-70">
+                                                            <Clock size={10} />
+                                                            <span>{classItem.duration}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    </div>
                 </div>
             </div>
+
         </div>
     );
 };

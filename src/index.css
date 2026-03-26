@@ -3,33 +3,60 @@
 @tailwind utilities;
 
 @layer base {
+    * {
+        @apply border-white/5;
+    }
 
     html,
     body,
     #root {
         height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
     }
 
     body {
-        background-color: #1a1a1a;
-        /* High-quality male & female gym background */
-        /* High-quality clear gym background with mixed gender - Full Visibility */
-        background-image: url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2670&auto=format&fit=crop');
+        background-color: #050505;
+        background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2670&auto=format&fit=crop');
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
         background-repeat: no-repeat;
+        -webkit-tap-highlight-color: transparent;
     }
 
-    /* Custom Scrollbar - Invisible but functional */
+    /* Custom Scrollbar */
     .custom-scrollbar {
-        scrollbar-width: none;
-        /* Firefox */
-        -ms-overflow-style: none;
-        /* IE and Edge */
+        scrollbar-width: thin;
+        scrollbar-color: rgba(57, 255, 20, 0.2) transparent;
     }
 
     .custom-scrollbar::-webkit-scrollbar {
-        display: none;
+        width: 4px;
+        height: 4px;
     }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(57, 255, 20, 0.2);
+        border-radius: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(57, 255, 20, 0.4);
+    }
+}
+
+/* Base animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.4s ease-out forwards;
 }
