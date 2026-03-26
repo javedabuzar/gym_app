@@ -3,6 +3,7 @@ import { Download, Monitor } from 'lucide-react';
 
 const InstallPWA = () => {
     const [deferredPrompt, setDeferredPrompt] = useState(null);
+    const [isInstallable, setIsInstallable] = useState(false);
     const [isInstalled, setIsInstalled] = useState(false);
 
     useEffect(() => {
@@ -10,6 +11,7 @@ const InstallPWA = () => {
             console.log('beforeinstallprompt event fired');
             e.preventDefault();
             setDeferredPrompt(e);
+            setIsInstallable(true);
         };
 
         window.addEventListener('beforeinstallprompt', handler);
