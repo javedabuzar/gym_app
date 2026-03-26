@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo.jpg', 'background-gym.jpg'],
+      includeAssets: ['logo.png', 'background-gym.jpg'],
       manifest: {
         name: 'Pro Flex Fitness Gym',
         short_name: 'GymPro',
@@ -21,21 +21,21 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/logo.jpg',
+            src: '/logo.png',
             sizes: '192x192',
-            type: 'image/jpeg',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/logo.jpg',
+            src: '/logo.png',
             sizes: '512x512',
-            type: 'image/jpeg',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/logo.jpg',
+            src: '/logo.png',
             sizes: '192x192',
-            type: 'image/jpeg',
+            type: 'image/png',
             purpose: 'maskable'
           }
         ]
