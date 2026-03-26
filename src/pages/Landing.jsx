@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, QrCode, ShieldCheck } from 'lucide-react';
 import { useGym } from '../context/GymContext';
+import InstallPWA from '../components/InstallPWA';
 
 const plans = [
     {
@@ -68,6 +69,16 @@ const Landing = () => {
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-white relative overflow-hidden">
+            {/* Top Navbar */}
+            <div className="fixed top-0 left-0 right-0 z-50 bg-black/40 backdrop-blur-xl border-b border-white/5">
+                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <img src="/logo.jpg" alt="Logo" className="h-10 w-auto" />
+                    <div className="w-48 sm:w-64">
+                         <InstallPWA />
+                    </div>
+                </div>
+            </div>
+
             {/* Background Decorative Elements */}
             <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-gym-neon/5 blur-[120px] rounded-full" />
             <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-gym-neon/5 blur-[120px] rounded-full" />
@@ -79,7 +90,7 @@ const Landing = () => {
                         <br />
                         <span className="text-gym-neon drop-shadow-[0_0_15px_rgba(57,255,20,0.5)]">SOFTWARE</span>
                     </h1>
-                    <p className="text-gray-400 max-w-2xl mx-auto text-lg md:text-xl font-medium leading-relaxed">
+                    <p className="text-gray-400 max-w-2xl mx-auto text-lg md:text-xl font-medium leading-relaxed mb-10">
                         Elevate your gym management with our state-of-the-art administrative suite.
                         Choose your path below.
                     </p>

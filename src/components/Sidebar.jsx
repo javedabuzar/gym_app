@@ -2,6 +2,7 @@ import React from 'react';
 import { LayoutDashboard, Users, Calendar, Settings, LogOut, FileText, QrCode, FlaskConical, Bike, Dumbbell, Notebook, Activity, CreditCard, X } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useGym } from '../context/GymContext';
+import InstallPWA from './InstallPWA';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
     const location = useLocation();
@@ -66,6 +67,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             </nav>
 
             <div className="pt-2 space-y-2 px-4 pb-4">
+                <InstallPWA />
                 <Link
                     to="/app/settings"
                     onClick={handleLinkClick}
