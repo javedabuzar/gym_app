@@ -20,10 +20,25 @@ const updateSW = registerSW({
     }
 })
 
-createRoot(document.getElementById('root')).render(
-    <StrictMode>
-        <GymProvider>
-            <App />
-        </GymProvider>
-    </StrictMode>,
-)
+try {
+    const root = document.getElementById('root');
+    if (!root) throw new Error("Root element not found!");
+    
+    createRoot(root).render(
+        <StrictMode>
+            <GymProvider>
+                <App />
+            </GymProvider>
+        </StrictMode>
+    );
+} catch (error) {
+    console.error('CRITICAL FRONTEND CRASH:', error);
+    document.body.innerHTML = `
+        <div style="background: #111; color: #ff5555; padding: 20px; font-family: sans-serif;">
+            <h1>Critical Error</h1>
+            <pre>${error.stack || error.message}</pre>
+            <p>Please try a hard refresh (Ctrl + F5)</p>
+        </div>
+    `;
+}
+

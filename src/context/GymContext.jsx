@@ -137,8 +137,16 @@ export const GymProvider = ({ children }) => {
     // Removed syncWithCloud as per latest request (Local-only data)
 
     useEffect(() => {
-        fetchData();
+        const init = async () => {
+            try {
+                await fetchData();
+            } catch (err) {
+                console.error('Error fetching initial data:', err);
+            }
+        };
+        init();
     }, [user]);
+
 
 
     // Operational Functions (Dexie-only as requested)
