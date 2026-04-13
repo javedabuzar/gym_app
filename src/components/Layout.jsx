@@ -8,6 +8,8 @@ const Layout = () => {
 
     return (
         <div className="min-h-screen bg-black/40 text-white font-sans relative">
+            <h1 className="fixed top-20 right-4 z-[100] bg-red-500 p-2">TEST VISIBILITY</h1>
+
             {/* Mobile Navbar */}
             <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-black/80 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-6 z-[60]">
                 <img src="/logo.jpg" alt="Logo" className="h-10 w-auto" />
