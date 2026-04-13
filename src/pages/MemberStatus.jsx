@@ -79,9 +79,10 @@ const MemberStatus = () => {
                 </div>
                 <div className="flex gap-4">
                     <button
-                        onClick={() => navigate('/app/members')}
+                        onClick={() => navigate('/members')}
                         className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
                     >
+
                         <Users size={20} />
                         Members
                     </button>

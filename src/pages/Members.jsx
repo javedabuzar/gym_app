@@ -191,13 +191,14 @@ const Members = () => {
                     </div>
                     <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2 w-full lg:w-auto bg-black/20 p-2 lg:p-0 rounded-2xl lg:bg-transparent">
                         <div className="flex gap-1 w-full sm:w-auto">
-                            <button onClick={() => navigate('/app/status')} className="flex-1 sm:flex-none bg-purple-600/20 text-purple-400 border border-purple-500/30 px-3 py-2 rounded-xl text-xs font-bold hover:bg-purple-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                            <button onClick={() => navigate('/status')} className="flex-1 sm:flex-none bg-purple-600/20 text-purple-400 border border-purple-500/30 px-3 py-2 rounded-xl text-xs font-bold hover:bg-purple-600 hover:text-white transition-all flex items-center justify-center gap-2">
                                 <Activity size={16} /> Status
                             </button>
-                            <button onClick={() => navigate('/app/payment')} className="flex-1 sm:flex-none bg-orange-600/20 text-orange-400 border border-orange-500/30 px-3 py-2 rounded-xl text-xs font-bold hover:bg-orange-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                            <button onClick={() => navigate('/payment')} className="flex-1 sm:flex-none bg-orange-600/20 text-orange-400 border border-orange-500/30 px-3 py-2 rounded-xl text-xs font-bold hover:bg-orange-600 hover:text-white transition-all flex items-center justify-center gap-2">
                                 <CreditCard size={16} /> Pay
                             </button>
                         </div>
+
                         
                         <div className="hidden sm:block w-px h-6 bg-white/10 mx-1"></div>
                         
