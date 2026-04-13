@@ -1,5 +1,6 @@
 import React from 'react';
-import { LayoutDashboard, Users, Calendar, Settings, LogOut, FileText, QrCode, FlaskConical, Bike, Dumbbell, Notebook, Activity, CreditCard, X } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Settings, FileText, QrCode, FlaskConical, Bike, Dumbbell, Notebook, Activity, CreditCard, X } from 'lucide-react';
+
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useGym } from '../context/GymContext';
 import InstallPWA from './InstallPWA';
@@ -10,22 +11,20 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     const { logout } = useGym();
 
     const menuItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
-        { icon: Users, label: 'Members', path: '/app/members' },
-        { icon: Dumbbell, label: 'Training', path: '/app/training' },
-        { icon: Calendar, label: 'Schedule', path: '/app/schedule' },
-        { icon: FileText, label: 'Reports', path: '/app/reports' },
-        { icon: QrCode, label: 'QR Scan', path: '/app/scan' },
-        { icon: FlaskConical, label: 'Supplements', path: '/app/supplements' },
-        { icon: Bike, label: 'Cardio', path: '/app/cardio' },
-        { icon: Notebook, label: 'Plans', path: '/app/plans' },
-        { icon: FileText, label: 'Slip / Invoice', path: '/app/invoice' },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+        { icon: Users, label: 'Members', path: '/members' },
+        { icon: Dumbbell, label: 'Training', path: '/training' },
+        { icon: Calendar, label: 'Schedule', path: '/schedule' },
+        { icon: FileText, label: 'Reports', path: '/reports' },
+        { icon: QrCode, label: 'QR Scan', path: '/scan' },
+        { icon: FlaskConical, label: 'Supplements', path: '/supplements' },
+        { icon: Bike, label: 'Cardio', path: '/cardio' },
+        { icon: Notebook, label: 'Plans', path: '/plans' },
+        { icon: FileText, label: 'Slip / Invoice', path: '/invoice' },
     ];
 
-    const handleLogout = () => {
-        logout();
-        navigate('/');
-    };
+
+
 
     const handleLinkClick = () => {
         if (window.innerWidth < 1024) {
@@ -69,24 +68,15 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             <div className="pt-2 space-y-2 px-4 pb-4">
                 <InstallPWA />
                 <Link
-                    to="/app/settings"
+                    to="/settings"
                     onClick={handleLinkClick}
                     className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
                 >
                     <Settings size={20} />
                     <span className="font-medium">Settings</span>
                 </Link>
-                <button
-                    onClick={() => {
-                        handleLogout();
-                        handleLinkClick();
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all"
-                >
-                    <LogOut size={20} />
-                    <span className="font-medium">Logout</span>
-                </button>
             </div>
+
         </div>
     );
 };

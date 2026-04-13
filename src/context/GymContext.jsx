@@ -11,14 +11,15 @@ export const GymProvider = ({ children }) => {
     const [members, setMembers] = useState([]);
     const [attendance, setAttendance] = useState({});
     const [payments, setPayments] = useState([]);
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState({ id: 'admin-123', email: 'admin@local' });
     const [classes, setClasses] = useState([]);
     const [plans, setPlans] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [adminAccount, setAdminAccount] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [adminAccount, setAdminAccount] = useState({ approval_status: 'approved', payment_status: 'approved', is_active: true });
     const [adminStatusLoading, setAdminStatusLoading] = useState(false);
     const [onlineActiveMembers, setOnlineActiveMembers] = useState([]);
     const [monthlyReports, setMonthlyReports] = useState([]);
+
 
     // Core Settings
     const [baseGymFee, setBaseGymFee] = useState(3000);
@@ -45,48 +46,18 @@ export const GymProvider = ({ children }) => {
     const [ptSubscriptions, setPtSubscriptions] = useState({});
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-        });
-
-        return () => subscription.unsubscribe();
+        // Authentication bypassed for local-only mode
+        setLoading(false);
     }, []);
 
-    const isAdminApproved =
-        adminAccount?.approval_status === 'approved' &&
-        adminAccount?.payment_status === 'approved' &&
-        adminAccount?.is_active === true;
+
+    const isAdminApproved = true;
+
 
     const fetchAdminAccount = async (authUser) => {
-        const userId = authUser?.id;
-        if (!userId) {
-            setAdminAccount(null);
-            return null;
-        }
-
-        setAdminStatusLoading(true);
-        const { data, error } = await supabase
-            .from('admin_accounts')
-            .select('*')
-            .eq('user_id', userId)
-            .maybeSingle();
-
-        if (error) {
-            console.error('Error loading admin account:', error);
-            setAdminAccount(null);
-            setAdminStatusLoading(false);
-            return null;
-        }
-
-        setAdminAccount(data || null);
-        setAdminStatusLoading(false);
-        return data || null;
+        return adminAccount;
     };
+
 
     const fetchData = async () => {
         if (!user || !isAdminApproved) return;
@@ -166,16 +137,9 @@ export const GymProvider = ({ children }) => {
     // Removed syncWithCloud as per latest request (Local-only data)
 
     useEffect(() => {
-        if (!user?.id) {
-            setAdminAccount(null);
-            return;
-        }
-        fetchAdminAccount(user);
+        fetchData();
     }, [user]);
 
-    useEffect(() => {
-        fetchData();
-    }, [user, isAdminApproved]);
 
     // Operational Functions (Dexie-only as requested)
     const addMember = async (member) => {
@@ -297,44 +261,10 @@ export const GymProvider = ({ children }) => {
     };
 
     // Authentication
-    const registerAdmin = async ({ fullName, gymName, email, password, planType }) => {
-        const planPrices = {
-            monthly: 5000,
-            six_months: 25000,
-            yearly: 45000
-        };
+    const registerAdmin = async () => ({ success: true });
+    const login = async () => true;
+    const logout = async () => {};
 
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    full_name: fullName,
-                    gym_name: gymName,
-                    plan_type: planType,
-                    plan_price: planPrices[planType] || 5000,
-                    role: 'admin_owner'
-                }
-            }
-        });
-
-        if (signUpError) {
-            console.error('Signup failed:', signUpError);
-            return { success: false, message: signUpError.message };
-        }
-
-        return {
-            success: true,
-            message: 'Account created! Please check your email to verify, then wait for super admin approval.'
-        };
-    };
-
-    const login = async (email, password) => {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        return !error;
-    };
-
-    const logout = async () => await supabase.auth.signOut();
 
     const saveSettings = async (category, newSettings) => {
         if (category === 'supplement') setSupplementSettings(newSettings);
